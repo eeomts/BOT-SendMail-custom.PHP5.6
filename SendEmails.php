@@ -76,8 +76,8 @@ class SendEmails
 
             $mail->CharSet = 'UTF-8';
             $mail->setFrom(
-                'sistema@netflexweb.com.br',
-                'Contrata Fashion'
+                $config['sender'],
+                $config['fromName']
             );
 
 
@@ -128,8 +128,8 @@ class SendEmails
 
             $mail->CharSet = 'UTF-8';
             $mail->setFrom(
-                'sistema@netflexweb.com.br',
-                'Contrata Fashion'
+                $config['sender'],
+                $config['fromName']
             );
 
 

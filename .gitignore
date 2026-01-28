@@ -3,7 +3,6 @@
 config/emailCredentials.php
 
 /template_email/Blackfriday2/*
-
 /template_email/images/*
 
-template_email/index.html
+/template_email/index.html

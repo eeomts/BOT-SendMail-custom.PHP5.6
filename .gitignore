@@ -6,4 +6,4 @@ config/emailCredentials.php
 
 /template_email/images/*
 
-/template_email/index.hmtl
+/template_email/index.html

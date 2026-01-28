@@ -13,9 +13,9 @@ mb_regex_encoding('UTF8');
 
 define("PDO_HOST", "localhost");
 define("PDO_USER", "root");
-define("PDO_DB", "contratafashion");
+define("PDO_DB", "contratafashion_347");
 define("PDO_PASS", "");
 define("PDO_DRIVER", "mysql");
-define("PDO_PORT", "3307");
+define("PDO_PORT", "3306");
 
 require_once 'Db.php';

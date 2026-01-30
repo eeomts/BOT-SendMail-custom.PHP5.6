@@ -19,9 +19,10 @@ $sendEmails = new SendEmails();
 $candidatos = $sendEmails->getCandidatosAreaNovaVaga();
 
 $result = $sendEmails->NovasVagasSend(
-    $candidatos,
-    'Novas vagas para você',
-    'nova_vaga_area'
+    $candidatos, #alvos para o envio do email
+    'Novas vagas para você', # assunto do email
+    'nova_vaga_area', #template_key verificador na tabela de botmail_send_control
+    7 #intervalo de dias para a busca, busca vagas dos ultimos dias
 );
 
 echo "<div style='background:#f9f9f9;padding:15px;border:1px solid #ccc'>";
@@ -35,44 +36,28 @@ if ($result['success']) {
 }
 
 echo "<p><strong>Usuários encontrados:</strong> " . count($candidatos) . "</p>";
-
-echo "<ul>";
-
-foreach ($result['logs'] as $log) {
-    echo "<li>{$log}</li>";
-}
-
-echo "</ul>";
 echo "</div>";
 
-$empresasInativas = $sendEmails->getEmpresasInativas30diasMais();
 
-$resultEmpresas = $sendEmails->SendEmpresas30diasMais();
+
+#envia email para empresas inativas no coontratafahion a mais de 30 dias
+$resultEmpresas = $sendEmails->SendEmpresas30diasMais(30);
+
 
 echo "<div style='background:#fff3cd;padding:15px;border:1px solid #ffc107;margin-top:20px'>";
-
 echo "<h3>Log de envio – Empresas Inativas 30+ dias</h3>";
-
 if ($resultEmpresas['success']) {
     echo "<p style='color:green'>✓ Processo executado</p>";
 } else {
     echo "<p style='color:red'>✗ Erro no processo</p>";
 }
-
 echo "<p><strong>Empresas encontradas:</strong> " . count($empresasInativas) . "</p>";
 
-echo "<ul>";
 
-foreach ($resultEmpresas['logs'] as $log) {
-    echo "<li>{$log}</li>";
-}
 
-echo "</ul>";
 echo "</div>";
-
-$empresasVagasAntigas = $sendEmails->getEmpresasVagas();
-
-$resultEmpresasVagas = $sendEmails->SendEmpresasVagasAntigas();
+#envia um email para empresas que tem vagas postadas a 30 dias ou mais
+$resultEmpresasVagas = $sendEmails->SendEmpresasVagasAntigas(30);
 
 echo "<div style='background:#e7f3ff;padding:15px;border:1px solid #0d6efd;margin-top:20px'>";
 
@@ -88,9 +73,6 @@ echo "<p><strong>Vagas encontradas:</strong> " . count($empresasVagasAntigas) . 
 
 echo "<ul>";
 
-foreach ($resultEmpresasVagas['logs'] as $log) {
-    echo "<li>{$log}</li>";
-}
 
 echo "</ul>";
 echo '</pre>';

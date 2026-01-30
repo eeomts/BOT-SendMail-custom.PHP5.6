@@ -12,7 +12,7 @@ require_once 'SendEmails.php';
 
 
 
-
+echo '<pre>';
 
 $sendEmails = new SendEmails();
 
@@ -45,15 +45,56 @@ foreach ($result['logs'] as $log) {
 echo "</ul>";
 echo "</div>";
 
+$empresasInativas = $sendEmails->getEmpresasInativas30diasMais();
 
+$resultEmpresas = $sendEmails->SendEmpresas30diasMais();
 
+echo "<div style='background:#fff3cd;padding:15px;border:1px solid #ffc107;margin-top:20px'>";
 
+echo "<h3>Log de envio – Empresas Inativas 30+ dias</h3>";
 
+if ($resultEmpresas['success']) {
+    echo "<p style='color:green'>✓ Processo executado</p>";
+} else {
+    echo "<p style='color:red'>✗ Erro no processo</p>";
+}
 
+echo "<p><strong>Empresas encontradas:</strong> " . count($empresasInativas) . "</p>";
 
+echo "<ul>";
 
+foreach ($resultEmpresas['logs'] as $log) {
+    echo "<li>{$log}</li>";
+}
 
+echo "</ul>";
+echo "</div>";
 
+$empresasVagasAntigas = $sendEmails->getEmpresasVagas();
+
+$resultEmpresasVagas = $sendEmails->SendEmpresasVagasAntigas();
+
+echo "<div style='background:#e7f3ff;padding:15px;border:1px solid #0d6efd;margin-top:20px'>";
+
+echo "<h3>Log de envio – Empresas com Vagas Antigas 15+ dias</h3>";
+
+if ($resultEmpresasVagas['success']) {
+    echo "<p style='color:green'>✓ Processo executado</p>";
+} else {
+    echo "<p style='color:red'>✗ Erro no processo</p>";
+}
+
+echo "<p><strong>Vagas encontradas:</strong> " . count($empresasVagasAntigas) . "</p>";
+
+echo "<ul>";
+
+foreach ($resultEmpresasVagas['logs'] as $log) {
+    echo "<li>{$log}</li>";
+}
+
+echo "</ul>";
+echo '</pre>';
+echo "</div>";
 
 // echo "<p>Candidatos encontrados: " . count($candidatosVagas) . "</p>";
 // echo "<pre>" . print_r($candidatosVagas, true) . "</pre>";

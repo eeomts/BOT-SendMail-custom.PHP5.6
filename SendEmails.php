@@ -444,6 +444,7 @@ class SendEmails
                     if (file_exists($file)) {
                         $mail->addAttachment($file);
                     }
+                }
 
                 if ($mail->send()) {
                     $status = 'sent';

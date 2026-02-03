@@ -18,6 +18,8 @@ $sendEmails = new SendEmails();
 
 $candidatos = $sendEmails->getCandidatosAreaNovaVaga();
 
+
+
 $result = $sendEmails->NovasVagasSend(
     $candidatos, #alvos para o envio do email
     'Novas vagas para você', # assunto do email

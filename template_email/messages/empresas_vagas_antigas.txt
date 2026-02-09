@@ -1,0 +1,11 @@
+<p><strong>Olá, {empresa}!</strong></p>
+<p>Notamos que sua vaga <strong>{nome_vaga}</strong> foi publicada há mais de {intervalo} dias no ContrataFashion.</p>
+<p><strong>Essa vaga ainda está ativa?</strong></p>
+<p>Se a vaga já foi preenchida, é importante inativá-la para evitar candidaturas desnecessárias.</p>
+<p>Se a vaga ainda está aberta, considere:</p>
+<ul>
+    <li>Atualizar a descrição para maior visibilidade</li>
+    <li>Renovar a publicação para alcançar mais candidatos</li>
+    <li>Revisar os requisitos da vaga</li>
+</ul>
+<p>Acesse nosso site para gerenciar suas vagas!</p>

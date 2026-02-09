@@ -1,0 +1,5 @@
+<p><strong>Olá, {empresa}!</strong></p>
+<p>Notamos que você não publicou novas vagas no ContrataFashion há mais de {intervalo} dias.</p>
+<p>Temos diversos candidatos qualificados aguardando por novas oportunidades!</p>
+<p>Que tal publicar uma nova vaga hoje e encontrar o profissional ideal para sua equipe?</p>
+<p>Acesse nosso site e publique suas vagas agora mesmo!</p>

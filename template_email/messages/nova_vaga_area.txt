@@ -1,0 +1,10 @@
+<p><strong>Olá, {nome}!</strong></p>
+<p>Uma nova vaga foi publicada em uma área de seu interesse!</p>
+<p><strong>Área:</strong> {area}</p>
+<p><strong>Vaga:</strong> {vaga}</p>
+<p>Acesse o site para mais detalhes e candidate-se!</p>
+<div style='text-align: center; margin: 20px 0;'>
+    <a href='https://contratafashion.com/app/login/{vaga_id}'>
+        <button type='submit' class='btn btn-primary align-items-center justify-content-center rounded' style='padding: 10px;'>Ver Vaga</button>
+    </a>
+</div>

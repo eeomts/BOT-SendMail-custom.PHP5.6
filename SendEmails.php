@@ -1,14 +1,4 @@
 <?php
-#enviar emails para: novas vagas por area de interesse no usuario
-#empresas que nao publicaram vagas nos ultimos 30 dias
-#verificar atividade da vaga a cada 15 dias
-
-/* :
- 1 - funcoes get usuarios e empresas do banco;
- 2 - funcoes send para cada case de envio de acrodo com os gets
- 3- funcoes de controle de envio dos emails inserts e selects da tabela botmail_send_control
-*/
-
 require_once 'config/database/DBconn.php';
 require_once 'vendor/autoload.php';
 
@@ -17,13 +7,12 @@ class SendEmails
     public $db;
     public $mail;
 
-
     public function __construct()
     {
         $this->db = new DB();
     }
 
-    public function getCandidatosAreaNovaVaga()
+    public function getCandidatosAreaNovaVaga($intervalo = 8)
     {
         $sql = "
             SELECT 
@@ -44,7 +33,7 @@ class SendEmails
             AND custom_vagas_rel.tabela = 'custom_vagas_areas'
             INNER JOIN custom_vagas_areas
                 ON custom_vagas_areas.id = custom_vagas_rel.fk_registro
-            WHERE custom_vagas.created >= DATE_SUB(NOW(), INTERVAL 8 DAY) 
+            WHERE custom_vagas.created >= DATE_SUB(NOW(), INTERVAL {$intervalo} DAY) 
             ORDER BY custom_contrata_usuario.id, custom_vagas.id;
             ";
 
@@ -52,269 +41,209 @@ class SendEmails
         return $this->db->fetchAll();
     }
 
-    
-    public function getEmpresasVagas()
+    public function getEmpresas($tipo = 'vagas_antigas', $intervalo = 30)
     {
-        $sql = "
+        $select = "
             SELECT
-            netflex_cliente.id AS id_empresa,
-            netflex_cliente.nome AS empresa,
-            netflex_cliente.email AS to_email,
-
-            custom_vagas.id AS id_vaga,
-            custom_vagas.nome AS nome_vaga,
-            custom_vagas.created AS data_publicacao
-            FROM custom_vagas
-            INNER JOIN netflex_cliente
-            ON netflex_cliente.id = custom_vagas.fk_cliente
-            WHERE custom_vagas.created <= DATE_SUB(NOW(), INTERVAL 30 DAY) AND netflex_cliente.fk_cliente_status = 1;
-        
+                netflex_cliente.id AS id_empresa,
+                netflex_cliente.nome AS empresa,
+                netflex_cliente.email AS to_email,
+                custom_vagas.id AS id_vaga,
+                custom_vagas.nome AS nome_vaga,
+                custom_vagas.created AS data_publicacao
         ";
+
+        switch ($tipo) {
+            case 'vagas_antigas':
+                $sql = $select . "
+                    FROM custom_vagas
+                    INNER JOIN netflex_cliente
+                    ON netflex_cliente.id = custom_vagas.fk_cliente
+                    WHERE custom_vagas.created <= DATE_SUB(NOW(), INTERVAL {$intervalo} DAY) 
+                    AND netflex_cliente.fk_cliente_status = 1
+                ";
+                break;
+
+            case 'inativas':
+                $sql = $select . "
+                    FROM netflex_cliente
+                    LEFT JOIN custom_vagas
+                    ON custom_vagas.fk_cliente = netflex_cliente.id
+                    AND custom_vagas.created >= DATE_SUB(NOW(), INTERVAL {$intervalo} DAY)
+                    WHERE custom_vagas.id IS NULL 
+                    AND netflex_cliente.fk_cliente_status = 1
+                ";
+                break;
+        }
 
         $this->db->executeSql($sql);
         return $this->db->fetchAll();
     }
 
-    public function getEmpresasInativas30diasMais()
+    public function SendMail($sending, $assunto, $mensagem, $templateKey, $anexos = [], $copy = null)
     {
 
-        $sql = "        
-        SELECT
-		netflex_cliente.id as id_usuario,
-        netflex_cliente.nome as empresa,
-        netflex_cliente.email as to_email,
-		custom_vagas.nome
-		
-        FROM netflex_cliente
-        LEFT JOIN custom_vagas
-        ON custom_vagas.fk_cliente = netflex_cliente.id
-        AND custom_vagas.created >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        WHERE custom_vagas.id IS NULL AND netflex_cliente.fk_cliente_status = 1;
-        ";
+        $config = require __DIR__ . '/config/emailCredentials.php';
 
-        $this->db->executeSql($sql);
-        return $this->db->fetchAll();
-    }
+        $mail = new PHPMailer(true);
+        $status = 'failed';
 
+        try {
+            $mail->isSMTP();
+            $mail->Host = $config['host'];
+            $mail->SMTPAuth = $config['SMTPauth'];
+            $mail->SMTPDebug = 2; // 2 debug
+            $mail->Username = $config['userName'];
+            $mail->Password = $config['pass'];
+            $mail->SMTPSecure = $config['SMTPSecure'];
+            $mail->Port = $config['port'];
+            $mail->Mailer = $config['Mailer'];
+            $mail->Priority = $config['Priority'];
 
-    public function SendMail($sending, $assunto, $mensagem, $templateKey){ 
-            
-            $config = require __DIR__ . '/config/emailCredentials.php';
+            $mail->CharSet = 'UTF-8';
+            $mail->setFrom($config['sender'], $config['fromName']);
+            $mail->isHTML(true);
+            $mail->addAddress($sending['to_email']);
 
-            $mail = new PHPMailer(true);
+            if ($copy) {
+                $mail->addBCC($copy);
+            }
+
+            $mail->Subject = $assunto;
+            $mail->Body = $mensagem;
+
+            foreach ($anexos as $file) {
+                if (file_exists($file)) {
+                    $mail->addAttachment($file);
+                }
+            }
+
+            if ($mail->send()) {
+                $status = 'sent';
+            }
+        } catch (Exception $e) {
             $status = 'failed';
+        }
 
-            try {
-                $mail->isSMTP();
-                $mail->Host = $config['host'];
-                $mail->SMTPAuth = $config['SMTPauth'];
-                $mail->SMTPDebug = 2; // 2 debug
-                $mail->Username = $config['userName'];
-                $mail->Password = $config['pass'];
-                $mail->SMTPSecure = $config['SMTPSecure'];
-                $mail->Port = $config['port'];
-                $mail->Mailer = $config['Mailer'];
-                $mail->Priority = $config['Priority'];
+        $this->saveMailControl(
+            $sending,
+            $templateKey,
+            $status
+        );
 
-                $mail->CharSet = 'UTF-8';
-                $mail->setFrom($config['sender'], $config['fromName']);
-                $mail->isHTML(true);
-                $mail->addAddress($sending['to_email']);
-
-                if ($copy) {
-                    $mail->addBCC($copy);
-                }
-
-                $mail->Subject = $assunto;
-                $mail->Body = $mensagem;
-
-                foreach ($anexos as $file) {
-                    if (file_exists($file)) {
-                        $mail->addAttachment($file);
-                    }
-                }
-
-                if ($mail->send()) {
-                    $status = 'sent';
-                }
-            } catch (Exception $e) {
-                $status = 'failed';
-            }
-
-            $this->saveMailControl(
-                $sending,
-                $templateKey,
-                $status
-            );
-
-
-            unset($mail);
+        unset($mail);
     }
 
-
-
-    public function NovasVagasSend( $to,  $assunto,  $templateKey = "nova_vaga_area",  $intervalo, $anexos = [], $copy = null)
+    public function enviarEmailCampanha($tipo, $intervaloEnvio, $intervaloBusca, $assunto = null, $anexos = [], $copy = null)
     {
         $logs = [];
-
-        if (empty($to)) {
-            return [
-                'success' => false,
-                'logs' => ['Nenhum destinatário encontrado']
-            ];
-        }
-
-        $config = require __DIR__ . '/config/emailCredentials.php';
-
-        foreach ($to as $sending) {
-
-            if (empty($sending['to_email'])) {
-                $logs[] = "Usuário sem email ({$sending['nome']})";
-                continue;
-            }
-
-            // Chama a função SendMailControl
-            if (!$this->SendMailControl($sending['id_usuario'], $templateKey, $intervalo)) {
-                $logs[] = "Já enviado para {$sending['nome']} ({$sending['to_email']})";
-                continue;
-            }
-
-            // conteúdo do email
-            $template = file_get_contents('template_email/index.html');
-            $template = str_replace('{titulo_email}', 'Nova Vaga em Sua Área', $template);
-            $conteudo = "<p><strong>Olá, {$sending['nome']}!</strong></p>";
-            $conteudo .= "<p>Uma nova vaga foi publicada em uma área de seu interesse!</p>";
-            $conteudo .= "<p><strong>Área:</strong> {$sending['area']}</p>";
-            $conteudo .= "<p><strong>Vaga:</strong> {$sending['vaga']}</p>";
-            $conteudo .= "<p>Acesse o site para mais detalhes e candidate-se!</p>";
-            $conteudo .= "<div style='text-align: center; margin: 20px 0;'><a href='https://contratafashion.com/app/login/{$sending['vaga_id']}'><button type='submit' class='btn btn-primary align-items-center justify-content-center rounded' style='padding: 30px;'>Ver Vaga</button></a></div>";
-
-            $template = str_replace('{conteudo_email}', $conteudo, $template);
-            $mensagem = $template;
-
-            $this->SendMail($sending, $assunto, $mensagem, $templateKey);            
-        }
-
-        return [
-            'success' => true,
-            'users' => $to['usuario']
-        ];
-    }
-
-
-
-
-
-    public function SendEmpresas30diasMais($intervalo, $assunto = 'Sentimos sua falta!',  $templateKey = 'empresas_inativas_30dias', $anexos = [], $copy = null )
-    {
-
-        $logs = [];
-
-        $to = $this->getEmpresasInativas30diasMais();
-
-        if (empty($to)) {
-            return [
-                'success' => false,
-                'logs' => ['Nenhum destinatário encontrado']
-            ];
-        }
-
-        $config = require __DIR__ . '/config/emailCredentials.php';
-
-        foreach ($to as $sending) {
-
-            if (empty($sending['to_email'])) {
-                $logs[] = "Usuário sem email ({$sending['empresa']})";
-                continue;
-            }
-
-            if (!$this->SendMailControl($sending['id_usuario'], $templateKey, $intervalo)) {
-                $logs[] = "Já enviado para {$sending['empresa']} ({$sending['to_email']})";
-                continue;
-            }
-
-            // conteúdo do email
-            $template = file_get_contents('template_email/index.html');
-            $template = str_replace('{titulo_email}', 'Sentimos sua falta!', $template);
-            $conteudo = "<p><strong>Olá, {$sending['empresa']}!</strong></p>";
-            $conteudo .= "<p>Notamos que você não publicou novas vagas no ContrataFashion há mais de 30 dias.</p>";
-            $conteudo .= "<p>Temos diversos candidatos qualificados aguardando por novas oportunidades!</p>";
-            $conteudo .= "<p>Que tal publicar uma nova vaga hoje e encontrar o profissional ideal para sua equipe?</p>";
-            $conteudo .= "<p>Acesse nosso site e publique suas vagas agora mesmo!</p>";
-
-            $template = str_replace('{conteudo_email}', $conteudo, $template);
-            $mensagem = $template;
-
-
-            $this->SendMail($sending, $assunto, $mensagem, $templateKey);     
-        }
-
-        return [
-            'success' => true,
-            'empresas' => $to['empresas']
-        ];
-    }
-
-
-
-    public function SendEmpresasVagasAntigas($intervalo, $assunto = 'Atualize suas vagas!',  $templateKey = 'empresas_vagas_antigas_15dias', $anexos = [], $copy = null)
-    {
-        $to = $this->getEmpresasVagas();
-        $logs = [];
+        $to = [];
+        $templateKey = '';
+        $tituloEmail = '';
+        $arquivoMensagem = '';
+        $idField = '';
+        $nomeField = '';
 
         
-        if (!$this->SendMailControl($to['id_usuario'], $templateKey, $intervalo)) {
-            return [
-                'success' => false,
-                'message' => 'Email já enviado recentemente.'
-            ];
+        switch ($tipo) {
+            case 'nova_vaga_area':
+                $to = $this->getCandidatosAreaNovaVaga($intervaloBusca);
+                $templateKey = 'nova_vaga_area';
+                $tituloEmail = 'Nova Vaga em Sua Área';
+                $arquivoMensagem = 'template_email/messages/nova_vaga_area.txt';
+                $assunto = isset($assunto) ? $assunto : 'Nova vaga na sua área de interesse!';
+                $idField = 'id_usuario';
+                $nomeField = 'nome';
+                break;
+
+            case 'empresas_inativas':
+                $to = $this->getEmpresas('inativas', $intervaloBusca);
+                $templateKey = 'empresas_inativas_30dias';
+                $tituloEmail = 'Sentimos sua falta!';
+                $arquivoMensagem = 'template_email/messages/empresas_inativas_30dias.txt';
+                $assunto = isset($assunto) ? $assunto : 'Sentimos sua falta!';
+                $idField = 'id_empresa';
+                $nomeField = 'empresa';
+                break;
+
+            case 'vagas_antigas':
+                $to = $this->getEmpresas('vagas_antigas', $intervaloBusca);
+                $templateKey = 'empresas_vagas_antigas';
+                $tituloEmail = 'Sua vaga ainda está ativa?';
+                $arquivoMensagem = 'template_email/messages/empresas_vagas_antigas.txt';
+                $assunto = isset($assunto) ? $assunto : 'Atualize suas vagas!';
+                $idField = 'id_empresa';
+                $nomeField = 'empresa';
+                break;
+
+            default:
+                return [
+                    'success' => false,
+                    'logs' => ['Tipo de campanha inválido: ' . $tipo]
+                ];
         }
 
+        
         if (empty($to)) {
             return [
                 'success' => false,
-                'logs' => ['Nenhum destinatário encontrado']
+                'logs' => ['Nenhum destinatário encontrado para campanha: ' . $tipo]
+            ];
+        }
+
+        $conteudoBase = file_get_contents($arquivoMensagem);
+        if ($conteudoBase === false) {
+            return [
+                'success' => false,
+                'logs' => ['Erro ao carregar arquivo de mensagem: ' . $arquivoMensagem]
             ];
         }
 
         foreach ($to as $sending) {
 
             if (empty($sending['to_email'])) {
-                $logs[] = "Empresa sem email ({$sending['empresa']})";
+                $logs[] = "Destinatário sem email ({$sending[$nomeField]})";
                 continue;
             }
 
-            if (!$this->SendMailControl($sending['id_empresa'], $templateKey, $intervalo)) {
-                $logs[] = "Já enviado para {$sending['empresa']} ({$sending['to_email']})";
+            if (!$this->SendMailControl($sending[$idField], $templateKey, $intervaloEnvio)) {
+                $logs[] = "Já enviado para {$sending[$nomeField]} ({$sending['to_email']})";
                 continue;
             }
-            
-            // conteúdo do email
+
             $template = file_get_contents('template_email/index.html');
-            $template = str_replace('{titulo_email}', 'Sua vaga ainda está ativa?', $template);
-            $conteudo = "<p><strong>Olá, {$sending['empresa']}!</strong></p>";
-            $conteudo .= "<p>Notamos que sua vaga <strong>{$sending['nome_vaga']}</strong> foi publicada há mais de $intervalo dias no ContrataFashion.</p>";
-            $conteudo .= "<p><strong>Essa vaga ainda está ativa?</strong></p>";
-            $conteudo .= "<p>Se a vaga já foi preenchida, é importante inativá-la para evitar candidaturas desnecessárias.</p>";
-            $conteudo .= "<p>Se a vaga ainda está aberta, considere:</p>";
-            $conteudo .= "<ul>";
-            $conteudo .= "<li>Atualizar a descrição para maior visibilidade</li>";
-            $conteudo .= "<li>Renovar a publicação para alcançar mais candidatos</li>";
-            $conteudo .= "<li>Revisar os requisitos da vaga</li>";
-            $conteudo .= "</ul>";
-            $conteudo .= "<p>Acesse nosso site para gerenciar suas vagas!</p>";
+            $template = str_replace('{titulo_email}', $tituloEmail, $template);
+
+            $conteudo = $this->substituirPlaceholders($conteudoBase, $sending, $intervaloBusca);
 
             $template = str_replace('{conteudo_email}', $conteudo, $template);
             $mensagem = $template;
 
-
-           $this->SendMail($sending, $assunto, $mensagem, $templateKey);     
+            $this->SendMail($sending, $assunto, $mensagem, $templateKey, $anexos, $copy);
+            $logs[] = "Email enviado para {$sending[$nomeField]} ({$sending['to_email']})";
         }
 
         return [
             'success' => true,
-            'pessoas' => $to['empresas']
+            'tipo' => $tipo,
+            'total_destinatarios' => count($to),
+            'logs' => $logs
         ];
+    }
+
+    private function substituirPlaceholders($conteudo, $dados, $intervalo)
+    {
+        $placeholders = array(
+            '{nome}' => isset($dados['nome']) ? $dados['nome'] : '',
+            '{empresa}' => isset($dados['empresa']) ? $dados['empresa'] : '',
+            '{area}' => isset($dados['area']) ? $dados['area'] : '',
+            '{vaga}' => isset($dados['vaga']) ? $dados['vaga'] : '',
+            '{vaga_id}' => isset($dados['vaga_id']) ? $dados['vaga_id'] : '',
+            '{nome_vaga}' => isset($dados['nome_vaga']) ? $dados['nome_vaga'] : '',
+            '{intervalo}' => $intervalo,
+        );
+
+        return str_replace(array_keys($placeholders), array_values($placeholders), $conteudo);
     }
 
     public function saveMailControl($sending, $templateKey, $status = 'sent')
@@ -329,8 +258,8 @@ class SendEmails
 
         $userId = !empty($sending['id_usuario'])
             ? (int) $sending['id_usuario']
-            : (!empty($sending['id_empresa']) 
-                ? (int) $sending['id_empresa'] 
+            : (!empty($sending['id_empresa'])
+                ? (int) $sending['id_empresa']
                 : 'NULL');
 
         $this->db->executeSql("
@@ -358,9 +287,7 @@ class SendEmails
 
     public function SendMailControl($idUser, $templateKey, $intervalo)
     {
-
         $db = $this->db;
-
         $sql = "
             SELECT id
             FROM botmail_send_control
@@ -372,7 +299,6 @@ class SendEmails
             ";
 
         $db->executeSql($sql);
-
         return $db->getNumRows() === 0;
     }
 }

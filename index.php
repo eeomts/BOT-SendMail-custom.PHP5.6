@@ -1,7 +1,7 @@
 <?php 
 /**
  * Uso da função enviarEmailCampanha():
- * @param string $tipo - Tipo: 'nova_vaga_area', 'empresas_inativas', 'vagas_antigas'
+ * @param string $tipo - Tipo: 'nova_vaga_area', 'empresas_inativas', 'vagas_antigas'.
  * @param int $intervaloEnvio - Dias para controle de reenvio (não reenvia se já enviou nesse período)
  * @param int $intervaloBusca - Dias para busca no BD (ex: vagas dos últimos X dias)
  * @param string $assunto - Assunto do email (opcional)

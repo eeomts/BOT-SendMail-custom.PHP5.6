@@ -22,6 +22,6 @@ $sendEmails->enviarEmailCampanha('nova_vaga_area', 7, 8, 'Novas vagas para você
 // Campanha 2: Empresas inativas (30+ dias sem publicar)
 $sendEmails->enviarEmailCampanha('empresas_inativas', 30, 30);
 
-// Campanha 3: Vagas antigas (15+ dias)
+// Campanha 3: Vagas antigas (15+ dias)..
 $sendEmails->enviarEmailCampanha('vagas_antigas', 15, 15);
 ?>
